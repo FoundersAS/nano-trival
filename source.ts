@@ -1,24 +1,70 @@
 import { NanoSQLStorageAdapter, DBKey, DBRow, _NanoSQLStorage } from "nano-sql/lib/database/storage";
 import { DataModel, NanoSQLInstance } from "nano-sql/lib/index";
-import { StdObject, hash, fastALL, fastCHAIN, deepFreeze, uuid, timeid, _assign, generateID, sortedInsert } from "nano-sql/lib/utilities";
+import { StdObject, hash, fastALL, deepFreeze, uuid, timeid, _assign, generateID, intersect, fastCHAIN } from "nano-sql/lib/utilities";
+import { DatabaseIndex } from "nano-sql/lib/database/db-idx";
+const trivialdb = require('trivialdb');
+import { setFast } from "lie-ts";
 
+export interface trivialDBOpts {
+    writeToDisk?: boolean;
+    loadFromDisk?: boolean;
+    rootPath?: string;
+    dbPath?: string;
+    writeDelay?: number;
+    prettyPrint?: boolean;
+    idFunc?: () => string;
+};
 
-export class SampleAdapter implements NanoSQLStorageAdapter {
+export interface trivialDB {
+    load: (key: any) => Promise<any>;
+    save: (key: any, value: any) => Promise<any>;
+    remove: (keyObj: { [primaryKeyCol: string]: any }) => Promise<any>;
+    clear: () => Promise<any>;
+    loading: Promise<any>;
+    filter: (filterFunc: (value: any, key: any) => boolean) => void;
+}
+
+export class TrivalAdapter implements NanoSQLStorageAdapter {
 
     private _id: string;
+    private _dbs: {
+        [tableName: string]: trivialDB
+    }
 
-    constructor() {
+    private ns: {
+        db: (name: string, dbOpts?: trivialDBOpts) => trivialDB;
+    };
 
+    private _pkKey: {
+        [tableName: string]: string;
+    };
+
+    private _pkType: {
+        [tableName: string]: string;
+    };
+
+    private _dbIndex: {
+        [tableName: string]: DatabaseIndex;
+    };
+
+    constructor(public nameSpaceOpts?: {
+        basePath?: string;
+        dbPath?: string;
+    }, public dbOpts?: trivialDBOpts) {
+        this._pkKey = {};
+        this._pkType = {};
+        this._dbIndex = {};
     }
 
     /**
      * The ID of the database provided by nanoSQL
      * 
      * @param {string} id 
-     * @memberof SampleAdapter
+     * @memberof TrivalAdapter
      */
     public setID(id: string) {
         this._id = id;
+        this._dbs = {};
     }
 
     /**
@@ -27,10 +73,28 @@ export class SampleAdapter implements NanoSQLStorageAdapter {
      * Call complete() once a succesfull connection has been made, otherwise throw an error
      * 
      * @param {() => void} complete 
-     * @memberof SampleAdapter
+     * @memberof TrivalAdapter
      */
     public connect(complete: () => void) {
+        this.ns = trivialdb.ns(this._id, this.nameSpaceOpts);
 
+        fastCHAIN(Object.keys(this._dbIndex), (tableName, i, next) => {
+            this._dbs[tableName] = this.ns.db(tableName, {
+                pk: this._pkKey[tableName],
+                ...this.dbOpts
+            } as any);
+            this._dbs[tableName].loading.then(() => {
+
+                this._dbs[tableName].filter((val, key) => {
+                    this._dbIndex[tableName].add(key);
+                    return false;
+                })
+                next();
+
+            }).catch((err) => {
+                throw new Error(err);
+            })
+        }).then(complete);
     }
 
     /**
@@ -39,10 +103,25 @@ export class SampleAdapter implements NanoSQLStorageAdapter {
      * 
      * @param {string} tableName 
      * @param {DataModel[]} dataModels 
-     * @memberof SampleAdapter
+     * @memberof TrivalAdapter
      */
     public makeTable(tableName: string, dataModels: DataModel[]): void {
+        this._dbIndex[tableName] = new DatabaseIndex();
 
+        dataModels.forEach((d) => {
+            if (d.props && intersect(["pk", "pk()"], d.props)) {
+                this._pkType[tableName] = d.type;
+                this._pkKey[tableName] = d.key;
+
+                if (d.props && intersect(["ai", "ai()"], d.props) && (d.type === "int" || d.type === "number")) {
+                    this._dbIndex[tableName].doAI = true;
+                }
+
+                if (d.props && intersect(["ns", "ns()"], d.props) || ["uuid", "timeId", "timeIdms"].indexOf(this._pkType[tableName]) !== -1) {
+                    this._dbIndex[tableName].sortIndex = false;
+                }
+            }
+        });
     }
 
     /**
@@ -58,10 +137,28 @@ export class SampleAdapter implements NanoSQLStorageAdapter {
      * @param {DBRow} newData 
      * @param {(row: DBRow) => void} complete 
      * @param {boolean} skipReadBeforeWrite 
-     * @memberof SampleAdapter
+     * @memberof TrivalAdapter
      */
     public write(table: string, pk: DBKey | null, newData: DBRow, complete: (row: DBRow) => void): void {
+        pk = pk || generateID(this._pkType[table], this._dbIndex[table].ai) as DBKey;
 
+        if (!pk) {
+            throw new Error("nSQL: Can't add a row without a primary key!");
+        }
+
+        if (this._dbIndex[table].indexOf(pk) === -1) {
+            this._dbIndex[table].add(pk);
+        }
+
+        const r = {
+            ...newData,
+            [this._pkKey[table]]: pk,
+        };
+        this._dbs[table].save(pk, r).then(() => {
+            complete(r);
+        }).catch((err) => {
+            throw new Error(err);
+        });
     }
 
     /**
@@ -70,23 +167,19 @@ export class SampleAdapter implements NanoSQLStorageAdapter {
      * @param {string} table 
      * @param {DBKey} pk Primary Key
      * @param {() => void} complete 
-     * @memberof SampleAdapter
+     * @memberof TrivalAdapter
      */
     public delete(table: string, pk: DBKey, complete: () => void): void {
+        let idx = this._dbIndex[table].indexOf(pk);
+        if (idx !== -1) {
+            this._dbIndex[table].remove(pk);
+        }
 
-    }
-
-    /**
-     * OPTIONAL METHOD
-     * An array of primary keys is provided, return all the rows with those primary keys.
-     * 
-     * @param {string} table 
-     * @param {DBKey[]} pks 
-     * @param {(rows: any[]) => void} callback 
-     * @memberof SampleAdapter
-     */
-    public batchRead(table: string, pks: DBKey[], callback: (rows: any[]) => void) {
-
+        this._dbs[table].remove({ [this._pkKey[table]]: pk }).then((removedIds) => {
+            complete();
+        }).catch((err) => {
+            throw new Error(err);
+        });
     }
 
     /**
@@ -95,10 +188,12 @@ export class SampleAdapter implements NanoSQLStorageAdapter {
      * @param {string} table 
      * @param {DBKey} pk 
      * @param {(row: DBRow) => void} callback 
-     * @memberof SampleAdapter
+     * @memberof TrivalAdapter
      */
     public read(table: string, pk: DBKey, callback: (row: DBRow) => void): void {
-
+        this._dbs[table].load(pk).then(callback).catch((err) => {
+            callback(undefined as any);
+        })
     }
 
     /**
@@ -119,10 +214,49 @@ export class SampleAdapter implements NanoSQLStorageAdapter {
      * @param {*} [from] 
      * @param {*} [to] 
      * @param {boolean} [usePK] 
-     * @memberof SampleAdapter
+     * @memberof TrivalAdapter
      */
     public rangeRead(table: string, rowCallback: (row: DBRow, idx: number, nextRow: () => void) => void, complete: () => void, from?: any, to?: any, usePK?: boolean): void {
+        let keys = this._dbIndex[table].keys();
+        const usefulValues = [typeof from, typeof to].indexOf("undefined") === -1;
+        let ranges: number[] = usefulValues ? [from as any, to as any] : [0, keys.length - 1];
+        if (!keys.length) {
+            complete();
+            return;
+        }
 
+        if (this._dbIndex[table].sortIndex === false) {
+            keys = keys.sort();
+        }
+
+        if (usePK && usefulValues) {
+            ranges = ranges.map(r => {
+                const idxOf = this._dbIndex[table].indexOf(r);
+                return idxOf !== -1 ? idxOf : this._dbIndex[table].getLocation(r);
+            });
+        }
+
+        let idx = ranges[0];
+        let i = 0;
+
+        const rowDone = () => {
+            idx++;
+            i++;
+            i % 500 === 0 ? setFast(getRow) : getRow(); // handle maximum call stack error
+        };
+
+        const getRow = () => {
+            if (idx <= ranges[1]) {
+                this._dbs[table].load(keys[idx]).then((row) => {
+                    rowCallback(row, idx, rowDone);
+                }).catch((err) => {
+                    throw new Error(err);
+                });
+            } else {
+                complete();
+            }
+        };
+        getRow();
     }
 
     /**
@@ -130,10 +264,19 @@ export class SampleAdapter implements NanoSQLStorageAdapter {
      * 
      * @param {string} table 
      * @param {() => void} callback 
-     * @memberof SampleAdapter
+     * @memberof TrivalAdapter
      */
     public drop(table: string, callback: () => void): void {
 
+        this._dbs[table].clear().then(() => {
+            let idx = new DatabaseIndex();
+            idx.doAI = this._dbIndex[table].doAI;
+            idx.sortIndex = this._dbIndex[table].sortIndex;
+            this._dbIndex[table] = idx;
+            callback();
+        }).catch((err) => {
+            throw new Error(err);
+        });
     }
 
     /**
@@ -142,20 +285,22 @@ export class SampleAdapter implements NanoSQLStorageAdapter {
      * @param {string} table 
      * @param {boolean} getLength 
      * @param {(index) => void} complete 
-     * @memberof SampleAdapter
+     * @memberof TrivalAdapter
      */
     public getIndex(table: string, getLength: boolean, complete: (index) => void): void {
-
+        complete(getLength ? this._dbIndex[table].keys().length : this._dbIndex[table].keys());
     }
 
     /**
      * Used only by the testing system, completely remove all tables and everything.
      * 
      * @param {() => void} complete 
-     * @memberof SampleAdapter
+     * @memberof TrivalAdapter
      */
     public destroy(complete: () => void) {
-
+        fastALL(Object.keys(this._dbIndex), (table, i, done) => {
+            this.drop(table, done);
+        }).then(complete);
     }
 
     /**
@@ -163,7 +308,7 @@ export class SampleAdapter implements NanoSQLStorageAdapter {
      * Provides the nano-sql instance this adapter is attached to.
      * 
      * @param {NanoSQLInstance} nsql 
-     * @memberof SampleAdapter
+     * @memberof TrivalAdapter
      */
     public setNSQL(nsql: NanoSQLInstance) {
 
