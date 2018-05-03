@@ -1,4 +1,4 @@
 import { TestAdapter } from "NanoSQL-Adapter-Test";
-import { TrivalAdapter } from "./source";
+import { TrivialAdapter } from "./source";
 
-new TestAdapter(TrivalAdapter, []);
+new TestAdapter(TrivialAdapter, []);

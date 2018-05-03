@@ -24,7 +24,7 @@ export interface trivialDB {
     filter: (filterFunc: (value: any, key: any) => boolean) => void;
 }
 
-export class TrivalAdapter implements NanoSQLStorageAdapter {
+export class TrivialAdapter implements NanoSQLStorageAdapter {
 
     private _id: string;
     private _dbs: {
@@ -301,16 +301,5 @@ export class TrivalAdapter implements NanoSQLStorageAdapter {
         fastALL(Object.keys(this._dbIndex), (table, i, done) => {
             this.drop(table, done);
         }).then(complete);
-    }
-
-    /**
-     * OPTIONAL METHOD
-     * Provides the nano-sql instance this adapter is attached to.
-     * 
-     * @param {NanoSQLInstance} nsql 
-     * @memberof TrivalAdapter
-     */
-    public setNSQL(nsql: NanoSQLInstance) {
-
     }
 }

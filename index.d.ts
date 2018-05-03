@@ -1,5 +1,5 @@
 import { NanoSQLStorageAdapter, DBKey, DBRow } from "nano-sql/lib/database/storage";
-import { DataModel, NanoSQLInstance } from "nano-sql/lib/index";
+import { DataModel } from "nano-sql/lib/index";
 export interface trivialDBOpts {
     writeToDisk?: boolean;
     loadFromDisk?: boolean;
@@ -19,7 +19,7 @@ export interface trivialDB {
     loading: Promise<any>;
     filter: (filterFunc: (value: any, key: any) => boolean) => void;
 }
-export declare class TrivalAdapter implements NanoSQLStorageAdapter {
+export declare class TrivialAdapter implements NanoSQLStorageAdapter {
     nameSpaceOpts: {
         basePath?: string | undefined;
         dbPath?: string | undefined;
@@ -45,5 +45,4 @@ export declare class TrivalAdapter implements NanoSQLStorageAdapter {
     drop(table: string, callback: () => void): void;
     getIndex(table: string, getLength: boolean, complete: (index) => void): void;
     destroy(complete: () => void): void;
-    setNSQL(nsql: NanoSQLInstance): void;
 }

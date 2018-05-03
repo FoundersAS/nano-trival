@@ -1,5 +1,5 @@
 # Nano-Trivial
-[TrivialDB](https://www.npmjs.com/package/trivialdb) Driver for [Nano SQL](https://nanosql.io/)
+[TrivialDB](https://www.npmjs.com/package/trivialdb) Driver for [nanoSQL](https://nanosql.io/)
 
 Lets you use TrivialDB as a backend datastore for nanoSQL.
 
@@ -19,12 +19,12 @@ npm i --save nano-trivial
 ## Usage
 ```ts
 import { nSQL } from "nano-sql";
-import { TrivalAdapter } from "nano-trivial";
+import { TrivialAdapter } from "nano-trivial";
 
 nSQL("table")
 .model([...])
 .config({
-    mode: new TrivalAdapter(),
+    mode: new TrivialAdapter(),
     ...other config options
 }).connect()...
 ```

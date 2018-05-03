@@ -12,19 +12,19 @@ var db_idx_1 = require("nano-sql/lib/database/db-idx");
 var trivialdb = require('trivialdb');
 var lie_ts_1 = require("lie-ts");
 ;
-var TrivalAdapter = (function () {
-    function TrivalAdapter(nameSpaceOpts, dbOpts) {
+var TrivialAdapter = (function () {
+    function TrivialAdapter(nameSpaceOpts, dbOpts) {
         this.nameSpaceOpts = nameSpaceOpts;
         this.dbOpts = dbOpts;
         this._pkKey = {};
         this._pkType = {};
         this._dbIndex = {};
     }
-    TrivalAdapter.prototype.setID = function (id) {
+    TrivialAdapter.prototype.setID = function (id) {
         this._id = id;
         this._dbs = {};
     };
-    TrivalAdapter.prototype.connect = function (complete) {
+    TrivialAdapter.prototype.connect = function (complete) {
         var _this = this;
         this.ns = trivialdb.ns(this._id, this.nameSpaceOpts);
         utilities_1.fastCHAIN(Object.keys(this._dbIndex), function (tableName, i, next) {
@@ -40,7 +40,7 @@ var TrivalAdapter = (function () {
             });
         }).then(complete);
     };
-    TrivalAdapter.prototype.makeTable = function (tableName, dataModels) {
+    TrivialAdapter.prototype.makeTable = function (tableName, dataModels) {
         var _this = this;
         this._dbIndex[tableName] = new db_idx_1.DatabaseIndex();
         dataModels.forEach(function (d) {
@@ -56,7 +56,7 @@ var TrivalAdapter = (function () {
             }
         });
     };
-    TrivalAdapter.prototype.write = function (table, pk, newData, complete) {
+    TrivialAdapter.prototype.write = function (table, pk, newData, complete) {
         pk = pk || utilities_1.generateID(this._pkType[table], this._dbIndex[table].ai);
         if (!pk) {
             throw new Error("nSQL: Can't add a row without a primary key!");
@@ -72,7 +72,7 @@ var TrivalAdapter = (function () {
         });
         var _a;
     };
-    TrivalAdapter.prototype.delete = function (table, pk, complete) {
+    TrivialAdapter.prototype.delete = function (table, pk, complete) {
         var idx = this._dbIndex[table].indexOf(pk);
         if (idx !== -1) {
             this._dbIndex[table].remove(pk);
@@ -84,12 +84,12 @@ var TrivalAdapter = (function () {
         });
         var _a;
     };
-    TrivalAdapter.prototype.read = function (table, pk, callback) {
+    TrivialAdapter.prototype.read = function (table, pk, callback) {
         this._dbs[table].load(pk).then(callback).catch(function (err) {
             callback(undefined);
         });
     };
-    TrivalAdapter.prototype.rangeRead = function (table, rowCallback, complete, from, to, usePK) {
+    TrivialAdapter.prototype.rangeRead = function (table, rowCallback, complete, from, to, usePK) {
         var _this = this;
         var keys = this._dbIndex[table].keys();
         var usefulValues = [typeof from, typeof to].indexOf("undefined") === -1;
@@ -128,7 +128,7 @@ var TrivalAdapter = (function () {
         };
         getRow();
     };
-    TrivalAdapter.prototype.drop = function (table, callback) {
+    TrivialAdapter.prototype.drop = function (table, callback) {
         var _this = this;
         this._dbs[table].clear().then(function () {
             var idx = new db_idx_1.DatabaseIndex();
@@ -140,17 +140,15 @@ var TrivalAdapter = (function () {
             throw new Error(err);
         });
     };
-    TrivalAdapter.prototype.getIndex = function (table, getLength, complete) {
+    TrivialAdapter.prototype.getIndex = function (table, getLength, complete) {
         complete(getLength ? this._dbIndex[table].keys().length : this._dbIndex[table].keys());
     };
-    TrivalAdapter.prototype.destroy = function (complete) {
+    TrivialAdapter.prototype.destroy = function (complete) {
         var _this = this;
         utilities_1.fastALL(Object.keys(this._dbIndex), function (table, i, done) {
             _this.drop(table, done);
         }).then(complete);
     };
-    TrivalAdapter.prototype.setNSQL = function (nsql) {
-    };
-    return TrivalAdapter;
+    return TrivialAdapter;
 }());
-exports.TrivalAdapter = TrivalAdapter;
+exports.TrivialAdapter = TrivialAdapter;
