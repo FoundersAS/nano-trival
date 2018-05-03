@@ -1,7 +1,7 @@
 # Nano-Trivial
 [TrivialDB](https://www.npmjs.com/package/trivialdb) Driver for [Nano SQL](https://nanosql.io/)
 
-Lets you use trivialDB to as a backend datastore for nanoSQL.
+Lets you use TrivialDB as a backend datastore for nanoSQL.
 
 TrivialDB is a simple JSON file storage database.  All changes are saved to disk as JSON files allowing you to easily view and edit database contents.
 

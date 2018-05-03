@@ -1,6 +1,6 @@
 {
   "name": "nano-trivial",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "TrivialDB adapter for nanoSQL",
   "main": "index.js",
   "typings": "index.d.ts",
