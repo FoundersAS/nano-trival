@@ -17,7 +17,6 @@ var TrivialAdapter = (function () {
         this.nameSpaceOpts = nameSpaceOpts;
         this.dbOpts = dbOpts;
         this._pkKey = {};
-        this._pkType = {};
         this._dbIndex = {};
     }
     TrivialAdapter.prototype.setID = function (id) {
@@ -45,19 +44,16 @@ var TrivialAdapter = (function () {
         this._dbIndex[tableName] = new db_idx_1.DatabaseIndex();
         dataModels.forEach(function (d) {
             if (d.props && utilities_1.intersect(["pk", "pk()"], d.props)) {
-                _this._pkType[tableName] = d.type;
+                _this._dbIndex[tableName].pkType = d.type;
                 _this._pkKey[tableName] = d.key;
                 if (d.props && utilities_1.intersect(["ai", "ai()"], d.props) && (d.type === "int" || d.type === "number")) {
                     _this._dbIndex[tableName].doAI = true;
-                }
-                if (d.props && utilities_1.intersect(["ns", "ns()"], d.props) || ["uuid", "timeId", "timeIdms"].indexOf(_this._pkType[tableName]) !== -1) {
-                    _this._dbIndex[tableName].sortIndex = false;
                 }
             }
         });
     };
     TrivialAdapter.prototype.write = function (table, pk, newData, complete) {
-        pk = pk || utilities_1.generateID(this._pkType[table], this._dbIndex[table].ai);
+        pk = pk || utilities_1.generateID(this._dbIndex[table].pkType, this._dbIndex[table].ai);
         if (!pk) {
             throw new Error("nSQL: Can't add a row without a primary key!");
         }

@@ -39,10 +39,6 @@ export class TrivialAdapter implements NanoSQLStorageAdapter {
         [tableName: string]: string;
     };
 
-    private _pkType: {
-        [tableName: string]: string;
-    };
-
     private _dbIndex: {
         [tableName: string]: DatabaseIndex;
     };
@@ -52,7 +48,6 @@ export class TrivialAdapter implements NanoSQLStorageAdapter {
         dbPath?: string;
     }, public dbOpts?: trivialDBOpts) {
         this._pkKey = {};
-        this._pkType = {};
         this._dbIndex = {};
     }
 
@@ -110,15 +105,11 @@ export class TrivialAdapter implements NanoSQLStorageAdapter {
 
         dataModels.forEach((d) => {
             if (d.props && intersect(["pk", "pk()"], d.props)) {
-                this._pkType[tableName] = d.type;
+                this._dbIndex[tableName].pkType = d.type;
                 this._pkKey[tableName] = d.key;
 
                 if (d.props && intersect(["ai", "ai()"], d.props) && (d.type === "int" || d.type === "number")) {
                     this._dbIndex[tableName].doAI = true;
-                }
-
-                if (d.props && intersect(["ns", "ns()"], d.props) || ["uuid", "timeId", "timeIdms"].indexOf(this._pkType[tableName]) !== -1) {
-                    this._dbIndex[tableName].sortIndex = false;
                 }
             }
         });
@@ -140,7 +131,7 @@ export class TrivialAdapter implements NanoSQLStorageAdapter {
      * @memberof TrivalAdapter
      */
     public write(table: string, pk: DBKey | null, newData: DBRow, complete: (row: DBRow) => void): void {
-        pk = pk || generateID(this._pkType[table], this._dbIndex[table].ai) as DBKey;
+        pk = pk || generateID(this._dbIndex[table].pkType, this._dbIndex[table].ai) as DBKey;
 
         if (!pk) {
             throw new Error("nSQL: Can't add a row without a primary key!");

@@ -29,7 +29,6 @@ export declare class TrivialAdapter implements NanoSQLStorageAdapter {
     private _dbs;
     private ns;
     private _pkKey;
-    private _pkType;
     private _dbIndex;
     constructor(nameSpaceOpts?: {
         basePath?: string | undefined;
