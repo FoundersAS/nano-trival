@@ -8,6 +8,8 @@ export interface trivialDBOpts {
     writeDelay?: number;
     prettyPrint?: boolean;
     idFunc?: () => string;
+    writeFunc?: (path: string, jsonStr: string) => Promise<any>;
+    readFunc?: (path: string) => Promise<any>;
 }
 export interface trivialDB {
     load: (key: any) => Promise<any>;
@@ -42,6 +44,6 @@ export declare class TrivialAdapter implements NanoSQLStorageAdapter {
     read(table: string, pk: DBKey, callback: (row: DBRow) => void): void;
     rangeRead(table: string, rowCallback: (row: DBRow, idx: number, nextRow: () => void) => void, complete: () => void, from?: any, to?: any, usePK?: boolean): void;
     drop(table: string, callback: () => void): void;
-    getIndex(table: string, getLength: boolean, complete: (index) => void): void;
+    getIndex(table: string, getLength: boolean, complete: (index: number) => void): void;
     destroy(complete: () => void): void;
 }
